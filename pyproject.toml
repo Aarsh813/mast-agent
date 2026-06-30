@@ -1,0 +1,26 @@
+[project]
+name = "mast-agent-workspace"
+version = "0.1.0"
+description = "Workspace for MAST Reviewer Agent"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "langchain-groq>=1.1.3",
+    "python-dotenv>=1.2.2",
+]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "N"]
+ignore = []
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["packages/mast-agent/tests"]

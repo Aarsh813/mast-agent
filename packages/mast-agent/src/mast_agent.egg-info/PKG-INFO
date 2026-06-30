@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: mast-agent
+Version: 0.1.0
+Summary: Diagnose LangGraph multi-agent systems failures with MAST taxonomy
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.100.0
+Requires-Dist: uvicorn>=0.23.0
+Requires-Dist: sqlmodel>=0.0.14
+Requires-Dist: langgraph>=0.0.26
+Requires-Dist: langchain-core>=0.1.0
+Requires-Dist: opentelemetry-api>=1.20.0
+Requires-Dist: opentelemetry-sdk>=1.20.0
+Requires-Dist: opentelemetry-exporter-otlp>=1.20.0
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: groq>=0.9.0
+Requires-Dist: openai>=1.10.0
+
+# mast-agent
+
+Python SDK and dashboard for diagnosing multi-agent systems failures using the MAST taxonomy.

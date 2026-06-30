@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mast-agent"
+version = "0.1.0"
+description = "Diagnose LangGraph multi-agent systems failures with MAST taxonomy"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "sqlmodel>=0.0.14",
+    "langgraph>=0.0.26",
+    "langchain-core>=0.1.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp>=1.20.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "groq>=0.9.0",
+    "openai>=1.10.0",
+]
+
+[project.scripts]
+mast = "mast_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
