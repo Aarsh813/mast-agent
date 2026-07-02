@@ -3,6 +3,7 @@ from typing import TypedDict, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel, Field
+from langchain_core.runnables.config import RunnableConfig
 
 # We use ChatGroq for fast/free dev testing, but you can swap to ChatOpenAI
 # Make sure to `pip install langchain-groq` or `langchain-openai`
@@ -41,14 +42,14 @@ def get_llm(temperature=0.7):
     model = os.getenv("MAST_LLM_MODEL", "llama-3.1-70b-versatile")
     return LLMFactory.create(provider, model, temperature=temperature)
 
-def planner_node(state: AgentState) -> dict:
+def planner_node(state: AgentState, config: RunnableConfig) -> dict:
     llm = get_llm(temperature=0.7)
     sys_msg = SystemMessage(content="You are a planner. Break down the user's task into 1-3 high-level steps. Return ONLY valid JSON matching the schema.")
     human_msg = HumanMessage(content=f"Task: {state['task']}")
     
     # In a real app we'd use .with_structured_output(), doing it simply here:
     llm_with_struct = llm.with_structured_output(PlanOutput)
-    response = llm_with_struct.invoke([sys_msg, human_msg])
+    response = llm_with_struct.invoke([sys_msg, human_msg], config=config)
     
     plan_steps = response.steps
     return {
@@ -58,7 +59,7 @@ def planner_node(state: AgentState) -> dict:
         "messages": [AIMessage(content=f"Plan created: {plan_steps}")]
     }
 
-def coder_node(state: AgentState) -> dict:
+def coder_node(state: AgentState, config: RunnableConfig) -> dict:
     llm = get_llm(temperature=0.5)
     step_idx = state.get("current_step", 0)
     plan = state.get("plan", [])
@@ -75,7 +76,7 @@ def coder_node(state: AgentState) -> dict:
     human_msg = HumanMessage(content=f"Overall Task: {state['task']}\nCurrent Step: {current_step_desc}{feedback_text}")
     
     llm_with_struct = llm.with_structured_output(CodeOutput)
-    response = llm_with_struct.invoke([sys_msg, human_msg])
+    response = llm_with_struct.invoke([sys_msg, human_msg], config=config)
     
     code = response.code
     
@@ -91,7 +92,7 @@ def coder_node(state: AgentState) -> dict:
         "messages": [AIMessage(content=f"Code for step {step_idx}: {code}")]
     }
 
-def reviewer_node(state: AgentState) -> dict:
+def reviewer_node(state: AgentState, config: RunnableConfig) -> dict:
     llm = get_llm(temperature=0.2)
     step_idx = state.get("current_step", 0)
     attempts = state.get("code_attempts", {}).get(step_idx, [])
@@ -104,7 +105,7 @@ def reviewer_node(state: AgentState) -> dict:
     human_msg = HumanMessage(content=f"Task: {state['task']}\nStep: {state['plan'][step_idx]}\nCode:\n{latest_code}")
     
     llm_with_struct = llm.with_structured_output(ReviewOutput)
-    response = llm_with_struct.invoke([sys_msg, human_msg])
+    response = llm_with_struct.invoke([sys_msg, human_msg], config=config)
     
     reviews = state.get("reviews", {})
     reviews[step_idx] = response.feedback

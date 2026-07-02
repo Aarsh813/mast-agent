@@ -1,3 +1,5 @@
 .venv
 demo/__pycache__
 .env
+mast.db
+demo/saved_runs/*.json

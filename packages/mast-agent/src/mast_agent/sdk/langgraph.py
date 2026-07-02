@@ -21,7 +21,7 @@ class MastLangGraphHandler(BaseCallbackHandler):
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
     ) -> None:
         """Run when chain starts."""
-        name = serialized.get("name", "unknown_chain")
+        name = (serialized or {}).get("name", "unknown_chain")
         
         # Determine if this is a node in LangGraph (agent role)
         if "node" in name.lower() or name in ["planner", "coder", "reviewer"]:

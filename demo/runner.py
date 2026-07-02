@@ -1,9 +1,13 @@
 import os
+import sys
 import json
 import time
 import uuid
 from datetime import datetime
 from dotenv import load_dotenv
+
+# Add the project root to sys.path to allow importing from 'demo'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 load_dotenv()
 
@@ -27,11 +31,18 @@ def run_task(task_obj):
         "messages": []
     }
     
-    # We aren't using the MastLangGraphHandler yet, just saving the state dumps manually
-    # for Phase 1 to have raw execution traces.
+    # Setup MAST Agent handler for tracing
+    from mast_agent.sdk.langgraph import MastLangGraphHandler
+    mast_handler = MastLangGraphHandler(
+        run_id=run_id,
+        task_description=task_obj["description"]
+    )
     
     try:
-        final_state = agent_graph.invoke(state)
+        final_state = agent_graph.invoke(
+            state, 
+            config={"callbacks": [mast_handler]}
+        )
         error = None
     except Exception as e:
         final_state = state # partial state

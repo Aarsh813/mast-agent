@@ -13,10 +13,18 @@ async def ingest_traces(request: Request, db: Session = Depends(get_session)):
     Ingest OpenTelemetry traces exported via HTTP JSON (OTLP).
     Extracts custom MAST attributes and stores them.
     """
-    try:
-        body = await request.json()
-    except json.JSONDecodeError:
-        return {"error": "Invalid JSON"}
+    content_type = request.headers.get("content-type", "")
+    if "application/x-protobuf" in content_type:
+        from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+        from google.protobuf.json_format import MessageToDict
+        raw_body = await request.body()
+        req = ExportTraceServiceRequest.FromString(raw_body)
+        body = MessageToDict(req)
+    else:
+        try:
+            body = await request.json()
+        except Exception:
+            return {"error": "Invalid JSON"}
 
     resource_spans = body.get("resourceSpans", [])
     for rs in resource_spans:
