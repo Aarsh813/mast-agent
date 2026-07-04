@@ -47,6 +47,8 @@ async def ingest_traces(request: Request, db: Session = Depends(get_session)):
                         val = str(val_dict)
                     attrs[key] = val
 
+                span_name = otel_span.get("name", "")
+                
                 run_id = attrs.get("mast.run.id", "unknown")
                 span_id = otel_span.get("spanId", "unknown")
                 
@@ -56,7 +58,17 @@ async def ingest_traces(request: Request, db: Session = Depends(get_session)):
                     task = attrs.get("mast.run.task", "Unknown Task")
                     run = Run(id=run_id, task=task)
                     db.add(run)
-                    db.commit()
+                
+                # Update task if we get a real one
+                if run.task == "Unknown Task" and "mast.run.task" in attrs:
+                    run.task = attrs["mast.run.task"]
+                    
+                # Update run outcome if it's a mast_run span or explicitly provided
+                if "mast.run.outcome" in attrs:
+                    run.outcome = attrs["mast.run.outcome"]
+                    run.status = "completed" if not attrs.get("mast.error") else "failed"
+                    
+                db.commit()
 
                 # Calculate latency
                 start_time_unix_nano = int(otel_span.get("startTimeUnixNano", 0))

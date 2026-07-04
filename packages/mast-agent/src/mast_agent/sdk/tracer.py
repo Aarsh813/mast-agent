@@ -37,8 +37,7 @@ class MastTracer:
         if metadata:
             for k, v in metadata.items():
                 attributes[f"mast.run.metadata.{k}"] = str(v)
-                
-        return tracer.start_as_current_span("mast_run", attributes=attributes)
+        return tracer.start_span("mast_run", attributes=attributes)
         
     @staticmethod
     def record_llm_call(

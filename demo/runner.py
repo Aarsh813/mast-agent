@@ -33,10 +33,14 @@ def run_task(task_obj):
     
     # Setup MAST Agent handler for tracing
     from mast_agent.sdk.langgraph import MastLangGraphHandler
+    from mast_agent.sdk.tracer import MastTracer
+    
     mast_handler = MastLangGraphHandler(
         run_id=run_id,
         task_description=task_obj["description"]
     )
+    
+    run_span = MastTracer.start_run(task=task_obj["description"], run_id=run_id)
     
     try:
         final_state = agent_graph.invoke(
@@ -56,6 +60,11 @@ def run_task(task_obj):
         outcome = "fail"
     elif not final_state.get("final_code"):
         outcome = "fail"
+        
+    run_span.set_attribute("mast.run.outcome", outcome)
+    if error:
+        run_span.set_attribute("mast.error", error)
+    run_span.end()
         
     run_log = {
         "run_id": run_id,

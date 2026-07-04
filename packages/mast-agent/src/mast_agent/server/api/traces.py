@@ -32,8 +32,14 @@ async def get_trace(run_id: str, db: Session = Depends(get_session)):
         agent_summary[role]["tokens"] += (span.tokens_in + span.tokens_out)
         agent_summary[role]["latency_ms"] += span.latency_ms
 
+    from mast_agent.server.models import Diagnosis
+    diagnosis = db.exec(
+        select(Diagnosis).where(Diagnosis.run_id == run_id).order_by(Diagnosis.diagnosed_at.desc())
+    ).first()
+
     return {
         "run": run,
         "timeline": spans,
         "agent_summary": agent_summary,
+        "diagnosis": diagnosis,
     }
