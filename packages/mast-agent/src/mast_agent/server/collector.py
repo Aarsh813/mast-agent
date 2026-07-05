@@ -97,6 +97,7 @@ async def ingest_traces(request: Request, db: Session = Depends(get_session)):
                     started_at=start_dt,
                     ended_at=end_dt
                 )
+                print(span_record)
                 
                 # Update run stats
                 if span_type == "llm_call":

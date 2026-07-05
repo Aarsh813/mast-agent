@@ -33,6 +33,7 @@ class MastTracer:
         attributes = {
             "mast.run.id": run_id,
             "mast.run.task": task,
+            "mast.span_type": "mast_run",
         }
         if metadata:
             for k, v in metadata.items():

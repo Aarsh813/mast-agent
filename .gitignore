@@ -3,3 +3,5 @@ demo/__pycache__
 .env
 mast.db
 demo/saved_runs/*.json
+logs/
+implementation_plan.md

@@ -95,7 +95,7 @@ def main():
     if not os.path.exists(RUNS_DIR):
         os.makedirs(RUNS_DIR)
         
-    runs_per_task = 5 # In real test, 10-15
+    runs_per_task = 1 # In real test, 10-15
     print(f"Starting batch run: {len(TASKS)} tasks x {runs_per_task} iterations")
     
     for task in TASKS:

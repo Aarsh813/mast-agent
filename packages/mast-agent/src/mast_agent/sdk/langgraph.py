@@ -1,5 +1,22 @@
+import logging
 import time
 import uuid
+import os
+
+log_dir = os.path.join(os.getcwd(), "logs")
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, "sdk.log")
+
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+if not logger.handlers:
+    logger.addHandler(file_handler)
+
 from typing import Any, Dict, List, Optional
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
@@ -16,6 +33,8 @@ class MastLangGraphHandler(BaseCallbackHandler):
         self.task_description = task_description
         self.run_span_context = None
         self.current_agent_role = "system"
+        self.chain_spans = {}
+        self.llm_runs = {}
 
     def on_chain_start(
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
@@ -34,19 +53,26 @@ class MastLangGraphHandler(BaseCallbackHandler):
             "mast.agent.role": self.current_agent_role,
         }
         
+        logger.debug(f"Starting chain span '{name}' with attributes: {attributes}")
+        
         span = tracer.start_span(f"chain_{name}", attributes=attributes)
-        kwargs["span"] = span
+        run_id = kwargs.get("run_id")
+        if run_id:
+            self.chain_spans[run_id] = span
 
     def on_chain_end(self, outputs: Dict[str, Any], **kwargs: Any) -> None:
         """Run when chain ends."""
-        span = kwargs.get("span")
+        run_id = kwargs.get("run_id")
+        span = self.chain_spans.pop(run_id, None)
         if span:
             span.set_attribute("mast.output_content", str(outputs))
             span.end()
+            logger.debug(f"Ended chain span for run_id {run_id} with outputs: {outputs}")
 
     def on_chain_error(self, error: Exception, **kwargs: Any) -> None:
         """Run when chain errors."""
-        span = kwargs.get("span")
+        run_id = kwargs.get("run_id")
+        span = self.chain_spans.pop(run_id, None)
         if span:
             span.record_exception(error)
             span.set_attribute("mast.error", str(error))
@@ -57,17 +83,27 @@ class MastLangGraphHandler(BaseCallbackHandler):
     ) -> None:
         """Run when LLM starts running."""
         model = kwargs.get("invocation_params", {}).get("model", "unknown")
-        # Store start info in kwargs or instance to use in on_llm_end
-        kwargs["llm_start_time"] = time.time()
-        kwargs["model_name"] = model
-        kwargs["prompts"] = prompts
+        if model == "unknown" and "invocation_params" in kwargs and "model_name" in kwargs["invocation_params"]:
+            model = kwargs["invocation_params"]["model_name"]
+            
+        run_id = kwargs.get("run_id")
+        self.llm_runs[run_id] = {
+            "llm_start_time": time.time(),
+            "model_name": model,
+            "prompts": prompts
+        }
+        logger.info(f"Starting LLM call for model {model} (run_id: {run_id})")
+        logger.debug(f"LLM Prompts: {prompts}")
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         """Run when LLM ends running."""
-        llm_start_time = kwargs.get("llm_start_time", time.time())
+        run_id = kwargs.get("run_id")
+        llm_run = self.llm_runs.pop(run_id, {})
+        
+        llm_start_time = llm_run.get("llm_start_time", time.time())
         latency_ms = (time.time() - llm_start_time) * 1000
-        model = kwargs.get("model_name", "unknown")
-        prompts = kwargs.get("prompts", [""])[0]
+        model = llm_run.get("model_name", "unknown")
+        prompts = llm_run.get("prompts", [""])[0]
         
         llm_output = response.llm_output or {}
         token_usage = llm_output.get("token_usage", {})
@@ -77,7 +113,14 @@ class MastLangGraphHandler(BaseCallbackHandler):
         
         generation_text = ""
         if response.generations and response.generations[0]:
-            generation_text = response.generations[0][0].text
+            generation = response.generations[0][0]
+            if hasattr(generation, "message") and hasattr(generation.message, "content"):
+                if isinstance(generation.message.content, str):
+                    generation_text = generation.message.content
+                else:
+                    generation_text = str(generation.message.content)
+            else:
+                generation_text = generation.text
             
         MastTracer.record_llm_call(
             run_id=self.run_id,
@@ -90,7 +133,10 @@ class MastLangGraphHandler(BaseCallbackHandler):
             prompt=str(prompts),
             response=generation_text
         )
+        logger.info(f"Ended LLM call for model {model} (Latency: {latency_ms:.2f}ms, Tokens: {tokens_in} in / {tokens_out} out)")
+        logger.debug(f"LLM Response: {generation_text}")
 
     def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
         """Run when LLM errors."""
-        pass # In a full implementation, we'd record an error span
+        run_id = kwargs.get("run_id")
+        self.llm_runs.pop(run_id, None)
